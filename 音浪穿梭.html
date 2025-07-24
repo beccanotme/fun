@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>复古企鹅音乐跑酷</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Changa:wght@400&display=swap" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        body {
+            font-family: 'Press Start 2P', cursive;
+            background: #eaf3fa;
+            color: #fff;
+            min-height: 100vh;
+            min-width: 100vw;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .pixel-corners {
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+        }
+        .text-shadow-yellow {
+            text-shadow: 2px 2px 0px #a18c00, 4px 4px 0px #4d4300;
+        }
+        .text-shadow-blue {
+            text-shadow: 2px 2px 0px #005a8c, 4px 4px 0px #002c44;
+        }
+        .btn-retro {
+            background-color: #008cff;
+            border: 2px solid #fff;
+            box-shadow: 4px 4px 0px #005a8c;
+            transition: all 0.1s ease-in-out;
+            color: white;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+        .btn-retro:active {
+            transform: translate(4px, 4px);
+            box-shadow: none;
+        }
+        #game-container {
+            width: 390px; /* iPhone 14标准宽度 */
+            height: 844px; /* iPhone 14标准高度 */
+            border: 8px solid #fff; /* 白色描边 */
+            border-radius: 48px; /* 更圆的角 */
+            box-shadow:
+                0 0 0 16px #222, /* 深色外环模拟手机边框 */
+                0 0 40px #00f, 0 0 80px #00f inset;
+            overflow: hidden;
+            position: relative;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            background-color: #0a0a23;
+            image-rendering: pixelated;
+        }
+        .perspective-bg {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            overflow: hidden;
+            z-index: 0;
+        }
+        .perspective-line {
+            position: absolute;
+            background-color: rgba(0, 140, 255, 0.3);
+        }
+        .marquee {
+            width: 180px;
+            overflow: hidden;
+            white-space: nowrap;
+            box-sizing: border-box;
+            font-family: 'Changa', 'changa-regular', Arial, sans-serif;
+            font-size: 1rem;
+            color: #222;
+            animation: marquee 8s linear infinite;
+        }
+        @keyframes marquee {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        .marquee-outer {
+            width: 170px;
+            height: 32px;
+            overflow: hidden;
+            border-radius: 16px;
+            background: transparent;
+            display: flex;
+            align-items: center;
+            margin-right: 8px;
+        }
+        .marquee-inner {
+            display: inline-block;
+            white-space: nowrap;
+            font-family: 'Changa', 'changa-regular', Arial, sans-serif;
+            font-size: 1rem;
+            color: #222;
+            animation: marquee 8s linear infinite;
+        }
+        @keyframes marquee {
+            0% { transform: translateX(100%);}
+            100% { transform: translateX(-100%);}
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center h-screen m-0">
+
+    <div id="game-container" class="relative bg-black flex flex-col pixel-corners">
+        <!-- 顶部进度条 -->
+        <div id="progress-bar-bg" style="position:absolute;top:0;left:0;width:100%;height:10px;background:rgba(255,255,255,0.15);z-index:25;border-radius:0 0 8px 8px;overflow:hidden;">
+            <div id="progress-bar" style="height:100%;width:0;background:linear-gradient(90deg,#00eaff,#00ff00,#ffff00);transition:width 0.2s;"></div>
+        </div>
+        <!-- 游戏分数 -->
+        <div id="score-display" class="absolute top-4 left-0 right-0 text-center text-5xl text-yellow-300 text-shadow-yellow z-20" style="display: none;">0</div>
+
+        <!-- 游戏画布 -->
+        <div class="relative w-full flex-grow">
+            <div class="perspective-bg"></div>
+            <canvas id="gameCanvas"></canvas>
+        </div>
+        
+        <!-- UI 覆盖层 -->
+        <div id="ui-overlay" class="absolute inset-0 z-30 flex flex-col items-center justify-center text-center bg-black bg-opacity-70 p-8">
+            <!-- 开始菜单 -->
+            <div id="start-menu">
+                <div class="flex items-center justify-center mb-8">
+                    <svg width="40" height="40" viewBox="0 0 100 100" class="mr-4"><path d="M50,5 L95,25 L95,75 L50,95 L5,75 L5,25 Z" fill="#fff"/><path d="M50,15 L85,35 L85,65 L50,85 L15,65 L15,35 Z" fill="#000"/><path d="M40,30 L60,30 L60,70 L40,70 Z" fill="#fff"/><path d="M45,35 L55,35 L55,65 L45,65 Z" fill="#000"/></svg>
+                    <h1 class="text-4xl text-yellow-300 text-shadow-yellow">PENGUIN BEAT</h1>
+                </div>
+                <p class="text-2xl mb-8">Tap to Start</p>
+                <div id="penguin-start" class="animate-bounce">
+                    <!-- 企鹅 SVG -->
+                </div>
+            </div>
+            <!-- 暂停菜单 -->
+            <div id="pause-menu" style="display: none;">
+                <h2 class="text-6xl mb-8 text-shadow-blue">PAUSED</h2>
+                <button id="resume-button" class="btn-retro text-2xl">Continue</button>
+            </div>
+            <!-- 游戏结束菜单 -->
+            <div id="game-over-menu" style="display: none;">
+                <h2 class="text-6xl mb-4 text-red-500" style="text-shadow: 2px 2px 0px #8c0000, 4px 4px 0px #440000;">GAME OVER</h2>
+                <p id="final-score-gameover" class="text-5xl mb-8 text-yellow-300 text-shadow-yellow">0</p>
+                <button id="retry-button" class="btn-retro text-2xl w-full mb-4">Try Again</button>
+            </div>
+             <!-- 胜利菜单 -->
+            <div id="win-menu" style="display: none;">
+                <h2 class="text-6xl mb-4 text-green-400" style="text-shadow: 2px 2px 0px #008c00, 4px 4px 0px #004400;">WIN!</h2>
+                <p id="final-score-win" class="text-5xl mb-8 text-yellow-300 text-shadow-yellow">0</p>
+                <button id="next-level-button" class="btn-retro text-2xl w-full">Next Level</button>
+            </div>
+        </div>
+
+        <!-- 音乐控制条 -->
+        <div id="music-controls" class="w-full flex items-center px-2 py-1" style="background:#eaf3fa;border-radius:999px;">
+            <img src="zj.PNG" alt="专辑封面" class="w-10 h-10 rounded-lg mr-2 shadow" style="margin-left:2px;">
+            <div class="marquee-outer">
+                <div class="marquee-inner">稻香 - 周杰伦</div>
+            </div>
+            <button id="play-pause-button" class="ml-2 bg-transparent border-0 flex items-center justify-center" style="width:52px;height:52px;border-radius:50%;">
+                <svg id="play-icon" xmlns="http://www.w3.org/2000/svg" width="44" height="44" fill="#000" class="bi bi-play-fill" viewBox="0 0 16 16" style="display: none;">
+                    <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/>
+                </svg>
+                <svg id="pause-icon" xmlns="http://www.w3.org/2000/svg" width="44" height="44" fill="#000" class="bi bi-pause-fill" viewBox="0 0 16 16">
+                    <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5A1.5 1.5 0 0 1 5.5 3.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5A1.5 1.5 0 0 1 10.5 3.5z"/>
+                </svg>
+            </button>
+        </div>
+        <audio id="bg-music" src="sunlit-rhythms-205542.mp3" loop preload="auto"></audio>
+    </div>
+
+    <script>
+        // --- DOM 元素 ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('score-display');
+        const uiOverlay = document.getElementById('ui-overlay');
+        const startMenu = document.getElementById('start-menu');
+        const pauseMenu = document.getElementById('pause-menu');
+        const gameOverMenu = document.getElementById('game-over-menu');
+        const winMenu = document.getElementById('win-menu');
+        const resumeButton = document.getElementById('resume-button');
+        const retryButton = document.getElementById('retry-button');
+        const nextLevelButton = document.getElementById('next-level-button');
+        const finalScoreDisplayGO = document.getElementById('final-score-gameover');
+        const finalScoreDisplayWin = document.getElementById('final-score-win');
+        const playPauseButton = document.getElementById('play-pause-button');
+        const playIcon = document.getElementById('play-icon');
+        const pauseIcon = document.getElementById('pause-icon');
+        const perspectiveBg = document.querySelector('.perspective-bg');
+        const bgMusic = document.getElementById('bg-music');
+
+        // --- 游戏状态 ---
+        let gameState = 'start'; // 'start', 'playing', 'paused', 'gameOver', 'win'
+        let score = 0;
+        let frameCount = 0;
+        const WIN_SCORE = 8000; // 设定胜利分数
+
+        // --- 音效 ---
+        const synth = new Tone.Synth().toDestination();
+        const coinSynth = new Tone.PluckSynth().toDestination();
+        
+        // --- 企鹅图片 ---
+        document.getElementById('penguin-start').innerHTML = '<img src="penguin.png" style="width:auto; height:48px; image-rendering: pixelated;">';
+        const penguinImg = new Image();
+        penguinImg.src = "penguin.png";
+        let penguinNaturalWidth = 0, penguinNaturalHeight = 0;
+        // 新增背景图片
+        const bgImg = new Image();
+        bgImg.src = "bg.png";
+        penguinImg.onload = function() {
+            penguinNaturalWidth = penguinImg.naturalWidth;
+            penguinNaturalHeight = penguinImg.naturalHeight;
+            // 初始化player宽高为原始比例的缩放
+            if (penguinNaturalWidth && penguinNaturalHeight) {
+                const scale = 55 / penguinNaturalHeight;
+                player.width = penguinNaturalWidth * scale;
+                player.height = 55;
+            }
+        };
+
+        // --- 道具相关 ---
+        let props = [];
+        let penguinSpinFrame = 0;
+        function triggerPenguinSpin() {
+            penguinSpinFrame = 40; // 旋转40帧
+        }
+
+        // --- 倍速道具相关 ---
+        let speedProps = [];
+        let isSpeedUp = false;
+        let speedUpTimer = 0;
+        let originalGameSpeed = null;
+        let scoreMultiplier = 1;
+
+        // --- 游戏设置 ---
+        let canvasWidth, canvasHeight;
+        const gravity = 0.2;
+        const lift = -5;
+        let gameSpeed = 2.5;
+
+        // --- 玩家对象 ---
+        const player = {
+            x: 0,
+            y: 0,
+            width: 36, // 会在图片onload后自动调整
+            height: 36,
+            velocity: 0,
+            draw() {
+                ctx.save();
+                ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+                if (penguinSpinFrame > 0) {
+                    ctx.rotate((40 - penguinSpinFrame) * 0.3);
+                    penguinSpinFrame--;
+                }
+                ctx.drawImage(penguinImg, -this.width / 2, -this.height / 2, this.width, this.height);
+                ctx.restore();
+            },
+            update() {
+                this.velocity += gravity;
+                this.y += this.velocity;
+
+                if (this.y + this.height > canvasHeight || this.y < 0) {
+                    this.y = Math.max(0, Math.min(this.y, canvasHeight - this.height));
+                    endGame();
+                }
+            },
+            jump() {
+                if (gameState === 'playing') {
+                    this.velocity = lift;
+                    try { synth.triggerAttackRelease("C5", "8n"); } catch(e) {}
+                }
+            }
+        };
+
+        // --- 障碍物 & 金币 ---
+        let obstacles = [];
+        let coins = [];
+        const obstacleWidth = 60;
+        let minObstacleGap = 200; // 初始空隙较大，后续动态调整
+        const obstacleFrequency = 30; // 每65帧生成一个新障碍物，使其更紧凑
+
+        function generateObstacles() {
+            // 30%概率跳过本次障碍物生成，避免太密集
+            if (Math.random() < 0.3) return;
+            // 难度递增：分数越高，空隙越小，但不低于90
+            if (score < 1000) {
+                minObstacleGap = 200;
+            } else if (score < 2000) {
+                minObstacleGap = 170;
+            } else if (score < 3500) {
+                minObstacleGap = 140;
+            } else {
+                minObstacleGap = 110;
+            }
+            if (frameCount % obstacleFrequency === 0) {
+                // 使用两个不同的sin函数为上下障碍物创建独立的、不对称的波形
+                let topHeight = (canvasHeight / 3.5) + Math.sin(frameCount / 40) * (canvasHeight / 6);
+                let bottomHeight = (canvasHeight / 3.5) + Math.sin(frameCount / 50 + Math.PI / 2) * (canvasHeight / 7);
+
+                // 确保障碍物高度不为负
+                topHeight = Math.max(50, topHeight);
+                bottomHeight = Math.max(50, bottomHeight);
+
+                // 确保上下障碍物之间有最小的空隙，保证游戏可玩性
+                if (canvasHeight - topHeight - bottomHeight < minObstacleGap) {
+                    // 如果空隙太小，优先调整波动幅度较大的一方
+                    if (Math.sin(frameCount / 40) > Math.sin(frameCount / 50 + Math.PI / 2)) {
+                       topHeight = canvasHeight - bottomHeight - minObstacleGap;
+                    } else {
+                       bottomHeight = canvasHeight - topHeight - minObstacleGap;
+                    }
+                }
+                obstacles.push({
+                    x: canvasWidth,
+                    y: 0,
+                    width: obstacleWidth,
+                    height: topHeight,
+                    type: 'top',
+                    passed: false
+                });
+                obstacles.push({
+                    x: canvasWidth,
+                    y: canvasHeight - bottomHeight,
+                    width: obstacleWidth,
+                    height: bottomHeight,
+                    type: 'bottom'
+                });
+
+                // 在空隙的垂直中心生成金币
+                const gapCenterY = topHeight + (canvasHeight - topHeight - bottomHeight) / 2;
+                coins.push({
+                    x: canvasWidth + obstacleWidth / 2,
+                    y: gapCenterY,
+                    size: 15,
+                    active: true,
+                    rotation: 0
+                });
+                // 15%概率生成道具
+                if (Math.random() < 0.15) {
+                    props.push({
+                        x: canvasWidth + obstacleWidth / 2,
+                        y: gapCenterY,
+                        size: 22,
+                        active: true,
+                        rotation: 0
+                    });
+                }
+                // 10%概率生成倍速道具
+                if (Math.random() < 0.10) {
+                    speedProps.push({
+                        x: canvasWidth + obstacleWidth / 2,
+                        y: gapCenterY,
+                        size: 22,
+                        active: true,
+                        rotation: 0
+                    });
+                }
+            }
+        }
+
+        function updateAndDrawObstacles() {
+            obstacles.forEach(obs => {
+                obs.x -= gameSpeed;
+                
+                // 绘制渐变色柱子
+                const gradient = ctx.createLinearGradient(obs.x, 0, obs.x + obs.width, 0);
+                gradient.addColorStop(0, '#ffff00');
+                gradient.addColorStop(0.5, '#00ff00');
+                gradient.addColorStop(1, '#00eaff');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+                
+                // 绘制柱子边框
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
+
+                // 碰撞检测
+                if (player.x < obs.x + obs.width &&
+                    player.x + player.width > obs.x &&
+                    player.y < obs.y + obs.height &&
+                    player.y + player.height > obs.y) {
+                    endGame();
+                }
+
+                // 计分
+                if (obs.type === 'top' && !obs.passed && obs.x + obs.width < player.x) {
+                    obs.passed = true;
+                    score += 100 * scoreMultiplier;
+                    updateScoreDisplay();
+                }
+            });
+
+            // 移除屏幕外的障碍物
+            obstacles = obstacles.filter(obs => obs.x + obs.width > 0);
+        }
+        
+        function updateAndDrawCoins() {
+            coins.forEach(coin => {
+                if (!coin.active) return;
+                coin.x -= gameSpeed;
+                coin.rotation += 0.1;
+
+                // 绘制金币
+                ctx.save();
+                ctx.translate(coin.x, coin.y);
+                ctx.rotate(coin.rotation);
+                ctx.fillStyle = '#ffd700';
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, coin.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                // 金币上的 "$" 符号
+                ctx.fillStyle = '#c0a000';
+                ctx.font = `${coin.size}px "Press Start 2P"`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('$', 0, 2);
+                ctx.restore();
+
+                // 碰撞检测
+                const dist = Math.hypot(player.x + player.width / 2 - coin.x, player.y + player.height / 2 - coin.y);
+                if (dist < player.width / 2 + coin.size) {
+                    coin.active = false;
+                    score += 50 * scoreMultiplier;
+                    updateScoreDisplay();
+                    // 使用本地金币音效
+                    try {
+                        const audio = new Audio('coin.mp3');
+                        audio.volume = 0.5;
+                        audio.play();
+                    } catch(e) {}
+                }
+            });
+            coins = coins.filter(c => c.x + c.size > 0);
+        }
+        
+        function updateAndDrawProps() {
+            props.forEach(prop => {
+                if (!prop.active) return;
+                prop.x -= gameSpeed;
+                prop.rotation += 0.2;
+
+                // 绘制五角星道具
+                ctx.save();
+                ctx.translate(prop.x, prop.y);
+                ctx.rotate(prop.rotation);
+                ctx.fillStyle = '#ff0';
+                ctx.beginPath();
+                for (let i = 0; i < 5; i++) {
+                    ctx.lineTo(
+                        Math.cos((18 + i * 72) / 180 * Math.PI) * prop.size,
+                        -Math.sin((18 + i * 72) / 180 * Math.PI) * prop.size
+                    );
+                    ctx.lineTo(
+                        Math.cos((54 + i * 72) / 180 * Math.PI) * (prop.size / 2),
+                        -Math.sin((54 + i * 72) / 180 * Math.PI) * (prop.size / 2)
+                    );
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+
+                // 碰撞检测
+                const dist = Math.hypot(player.x + player.width / 2 - prop.x, player.y + player.height / 2 - prop.y);
+                if (dist < player.width / 2 + prop.size) {
+                    prop.active = false;
+                    triggerPenguinSpin();
+                }
+            });
+            props = props.filter(p => p.x + p.size > 0);
+        }
+
+        function updateAndDrawSpeedProps() {
+            speedProps.forEach(prop => {
+                if (!prop.active) return;
+                prop.x -= gameSpeed;
+                prop.rotation += 0.2;
+
+                // 绘制蓝色五角星道具
+                ctx.save();
+                ctx.translate(prop.x, prop.y);
+                ctx.rotate(prop.rotation);
+                ctx.fillStyle = '#00aaff';
+                ctx.beginPath();
+                for (let i = 0; i < 5; i++) {
+                    ctx.lineTo(
+                        Math.cos((18 + i * 72) / 180 * Math.PI) * prop.size,
+                        -Math.sin((18 + i * 72) / 180 * Math.PI) * prop.size
+                    );
+                    ctx.lineTo(
+                        Math.cos((54 + i * 72) / 180 * Math.PI) * (prop.size / 2),
+                        -Math.sin((54 + i * 72) / 180 * Math.PI) * (prop.size / 2)
+                    );
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+
+                // 碰撞检测
+                const dist = Math.hypot(player.x + player.width / 2 - prop.x, player.y + player.height / 2 - prop.y);
+                if (dist < player.width / 2 + prop.size) {
+                    prop.active = false;
+                    triggerSpeedUp();
+                }
+            });
+            speedProps = speedProps.filter(p => p.x + p.size > 0);
+        }
+
+        function triggerSpeedUp() {
+            if (!isSpeedUp) {
+                originalGameSpeed = gameSpeed;
+                gameSpeed = originalGameSpeed * 1.25;
+                scoreMultiplier = 2;
+                isSpeedUp = true;
+                speedUpTimer = 300; // 5秒，假设60帧/s
+            } else {
+                speedUpTimer = 300; // 叠加效果，重置计时
+            }
+        }
+
+        // --- 背景效果 ---
+        function drawPerspectiveBg() {
+            // 先绘制背景图片
+            if (bgImg.complete && bgImg.naturalWidth > 0) {
+                ctx.drawImage(bgImg, 0, 0, canvasWidth, canvasHeight);
+            }
+            const horizonX = canvasWidth / 2;
+            const horizonY = canvasHeight / 2;
+            ctx.strokeStyle = 'rgba(0, 140, 255, 0.3)';
+            ctx.lineWidth = 2;
+
+            // 绘制水平线
+            const step = 20;
+            for(let i = 0; i < canvasHeight / 2 / step; i++) {
+                const y = horizonY + i * step * (frameCount * 0.01 % 1);
+                const perspective = (y - horizonY) / (canvasHeight / 2);
+                const x1 = horizonX - (horizonX * perspective);
+                const x2 = horizonX + (horizonX * perspective);
+                if(y > horizonY) {
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y);
+                    ctx.lineTo(x2, y);
+                    ctx.stroke();
+                }
+            }
+             for(let i = 0; i < canvasHeight / 2 / step; i++) {
+                const y = horizonY - i * step * (frameCount * 0.01 % 1);
+                const perspective = (horizonY - y) / (horizonY);
+                const x1 = 0;
+                const x2 = canvasWidth;
+                if(y < horizonY) {
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y);
+                    ctx.lineTo(x2, y);
+                    ctx.stroke();
+                }
+            }
+
+
+            // 绘制垂直线
+            ctx.beginPath();
+            ctx.moveTo(horizonX, horizonY);
+            ctx.lineTo(0, 0);
+            ctx.moveTo(horizonX, horizonY);
+            ctx.lineTo(canvasWidth, 0);
+            ctx.moveTo(horizonX, horizonY);
+            ctx.lineTo(0, canvasHeight);
+            ctx.moveTo(horizonX, horizonY);
+            ctx.lineTo(canvasWidth, canvasHeight);
+            ctx.stroke();
+        }
+
+
+        // --- 游戏主循环 ---
+        function gameLoop() {
+            if (gameState !== 'playing') return;
+
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+            
+            // 绘制
+            drawPerspectiveBg();
+            updateAndDrawObstacles();
+            updateAndDrawCoins();
+            updateAndDrawProps();
+            updateAndDrawSpeedProps();
+            player.draw();
+
+            // 更新
+            player.update();
+            generateObstacles();
+            
+            // 倍速道具计时与恢复
+            if (isSpeedUp) {
+                speedUpTimer--;
+                if (speedUpTimer <= 0) {
+                    isSpeedUp = false;
+                    gameSpeed = originalGameSpeed;
+                    scoreMultiplier = 1;
+                }
+            }
+
+            // 检查胜利条件
+            if (score >= WIN_SCORE) {
+                winGame();
+            }
+
+            frameCount++;
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- 游戏流程控制 ---
+        function init() {
+            const container = document.getElementById('game-container');
+            canvasWidth = canvas.clientWidth;
+            canvasHeight = canvas.clientHeight;
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+
+            player.x = canvasWidth / 4;
+            player.y = canvasHeight / 2;
+            player.velocity = 0;
+            
+            obstacles = [];
+            coins = [];
+            props = [];
+            speedProps = [];
+            isSpeedUp = false;
+            scoreMultiplier = 1;
+            score = 0;
+            frameCount = 0;
+            updateScoreDisplay();
+        }
+
+        // 游戏开始时播放音乐
+        function startGame() {
+            init();
+            gameState = 'playing';
+            uiOverlay.style.display = 'none';
+            scoreDisplay.style.display = 'block';
+            player.jump();
+            bgMusic.currentTime = 0;
+            bgMusic.play();
+            gameLoop();
+        }
+
+        // 暂停时暂停音乐
+        function pauseGame() {
+            if (gameState !== 'playing') return;
+            gameState = 'paused';
+            uiOverlay.style.display = 'flex';
+            pauseMenu.style.display = 'block';
+            startMenu.style.display = 'none';
+            gameOverMenu.style.display = 'none';
+            winMenu.style.display = 'none';
+            playIcon.style.display = 'block';
+            pauseIcon.style.display = 'none';
+            bgMusic.pause();
+        }
+
+        // 恢复时继续播放
+        function resumeGame() {
+            gameState = 'playing';
+            uiOverlay.style.display = 'none';
+            playIcon.style.display = 'none';
+            pauseIcon.style.display = 'block';
+            bgMusic.play();
+            gameLoop();
+        }
+
+        // 游戏结束时暂停音乐
+        function endGame() {
+            if (gameState === 'gameOver') return;
+            gameState = 'gameOver';
+            scoreDisplay.style.display = 'none';
+            uiOverlay.style.display = 'flex';
+            gameOverMenu.style.display = 'block';
+            startMenu.style.display = 'none';
+            pauseMenu.style.display = 'none';
+            winMenu.style.display = 'none';
+            finalScoreDisplayGO.textContent = score;
+            try { synth.triggerAttackRelease("C3", "2n"); } catch(e) {}
+            bgMusic.pause();
+            bgMusic.currentTime = 0;
+        }
+        
+        // 胜利时暂停音乐
+        function winGame() {
+            gameState = 'win';
+            scoreDisplay.style.display = 'none';
+            uiOverlay.style.display = 'flex';
+            winMenu.style.display = 'block';
+            startMenu.style.display = 'none';
+            pauseMenu.style.display = 'none';
+            gameOverMenu.style.display = 'none';
+            finalScoreDisplayWin.textContent = score;
+            bgMusic.pause();
+            bgMusic.currentTime = 0;
+        }
+
+        function updateScoreDisplay() {
+            scoreDisplay.textContent = score;
+            // 更新进度条
+            const progress = Math.min(score / WIN_SCORE, 1);
+            document.getElementById('progress-bar').style.width = (progress * 100) + '%';
+        }
+        
+        function resetGame() {
+            uiOverlay.style.display = 'flex';
+            startMenu.style.display = 'block';
+            pauseMenu.style.display = 'none';
+            gameOverMenu.style.display = 'none';
+            winMenu.style.display = 'none';
+            scoreDisplay.style.display = 'none';
+            gameState = 'start'; // 修复：重置状态为start
+            init();
+        }
+
+        // --- 事件监听 ---
+        function handleUserAction(e) {
+            e.preventDefault();
+            if (gameState === 'start') {
+                // 首次点击需要用户交互来启动音频
+                Tone.start().then(() => {
+                    startGame();
+                });
+            } else if (gameState === 'playing') {
+                player.jump();
+            }
+        }
+        window.addEventListener('mousedown', handleUserAction);
+        window.addEventListener('touchstart', handleUserAction, { passive: false });
+        
+        resumeButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            resumeGame();
+        });
+        
+        retryButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            resetGame();
+        });
+
+        nextLevelButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            alert("恭喜！下一关敬请期待！");
+            resetGame();
+        });
+
+        playPauseButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (gameState === 'playing') {
+                pauseGame();
+            } else if (gameState === 'paused') {
+                resumeGame();
+            }
+        });
+        
+        // --- 初始化 ---
+        window.addEventListener('resize', init);
+        
+        // 初始设置
+        uiOverlay.style.display = 'flex';
+        startMenu.style.display = 'block';
+        pauseMenu.style.display = 'none';
+        gameOverMenu.style.display = 'none';
+        winMenu.style.display = 'none';
+        scoreDisplay.style.display = 'none';
+        playIcon.style.display = 'none';
+        pauseIcon.style.display = 'block';
+        // 初始化进度条
+        document.getElementById('progress-bar').style.width = '0%';
+        
+        // 延迟初始化以确保布局完成
+        setTimeout(init, 100);
+
+    </script>
+</body>
+</html>
